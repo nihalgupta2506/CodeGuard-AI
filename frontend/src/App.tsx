@@ -1,0 +1,287 @@
+
+import { useState } from "react";
+import "./App.css";
+
+const API_URL = "http://127.0.0.1:8000";
+
+type Language = "python" | "cpp";
+type Severity = "error" | "warning" | "info";
+
+type Finding = {
+  source: "static_analysis";
+  rule_id: string;
+  severity: Severity;
+  message: string;
+  line: number;
+  column: number;
+  end_line: number | null;
+  end_column: number | null;
+  fix_available: boolean;
+};
+
+type ReviewResult = {
+  language: Language;
+  status: "completed" | "analyzer_unavailable" | "failed";
+  analyzer: {
+    name: string;
+    status: "completed" | "unavailable" | "failed";
+    message: string;
+  };
+  findings: Finding[];
+  findings_count: number;
+};
+
+function App() {
+  const [language, setLanguage] = useState<Language>("python");
+  const [code, setCode] = useState('import os\n\nx = 1\nprint(x)\n');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ReviewResult | null>(null);
+  const [error, setError] = useState("");
+  const [connection, setConnection] = useState<
+    "idle" | "checking" | "connected" | "error"
+  >("idle");
+
+  async function checkConnection() {
+    setConnection("checking");
+
+    try {
+      const response = await fetch(`${API_URL}/health`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status !== "healthy") {
+        throw new Error("Unexpected health response");
+      }
+
+      setConnection("connected");
+    } catch {
+      setConnection("error");
+    }
+  }
+
+  async function reviewCode() {
+    setLoading(true);
+    setError("");
+    setResult(null);
+
+    try {
+      const response = await fetch(`${API_URL}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language, code }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.detail === "string"
+            ? data.detail
+            : `Request failed with HTTP ${response.status}`
+        );
+      }
+
+      setResult(data as ReviewResult);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to complete the review."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <a className="brand" href="/">
+          <span className="brand-mark">&lt;/&gt;</span>
+          <span>CodeGuard <strong>AI</strong></span>
+        </a>
+        <span className="version-label">DEVELOPER PREVIEW</span>
+      </header>
+
+      <section className="hero">
+        <p className="eyebrow">STATIC ANALYSIS WORKSPACE</p>
+        <h1>Write better code.</h1>
+        <p className="hero-description">
+          Find code-quality issues, inspect analyzer findings, and understand
+          where to improve your code.
+        </p>
+      </section>
+
+      <section className="workspace">
+        <div className="workspace-header">
+          <div>
+            <h2>Code workspace</h2>
+            <p>Submit source code for static analysis.</p>
+          </div>
+
+          <label className="language-control">
+            <span>Language</span>
+            <select
+              value={language}
+              onChange={(event) => {
+                setLanguage(event.target.value as Language);
+                setResult(null);
+                setError("");
+              }}
+            >
+              <option value="python">Python</option>
+              <option value="cpp">C++</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="editor">
+          <div className="editor-toolbar">
+            <span className="editor-dot" />
+            <span className="editor-dot" />
+            <span className="editor-dot" />
+            <span className="file-name">
+              {language === "python" ? "main.py" : "main.cpp"}
+            </span>
+          </div>
+
+          <textarea
+            aria-label="Source code"
+            spellCheck={false}
+            value={code}
+            onChange={(event) => {
+              setCode(event.target.value);
+              setResult(null);
+            }}
+            placeholder="Paste your code here..."
+          />
+
+          <div className="editor-footer">
+            <span>{language === "python" ? "Python" : "C++"}</span>
+            <span>{code.length.toLocaleString()} / 20,000 characters</span>
+          </div>
+        </div>
+
+        <div className="workspace-actions">
+          <p>Source code is analyzed, not executed.</p>
+          <button
+            type="button"
+            onClick={reviewCode}
+            disabled={loading || !code.trim() || code.length > 20_000}
+          >
+            {loading ? "Analyzing..." : "Review code"}
+          </button>
+        </div>
+
+        {error && (
+          <div className="message-panel error-panel" role="alert">
+            <strong>Review failed</strong>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {result && (
+          <section className="results" aria-live="polite">
+            <div className="results-heading">
+              <div>
+                <h2>Analysis results</h2>
+                <p>Analyzer: {result.analyzer.name}</p>
+              </div>
+              <span
+                className={`status-pill ${
+                  result.status === "completed" ? "connected" : "error"
+                }`}
+              >
+                {result.status === "completed"
+                  ? "Completed"
+                  : "Analyzer unavailable"}
+              </span>
+            </div>
+
+            <div className="message-panel">
+              <p>{result.analyzer.message}</p>
+              <strong>
+                {result.findings_count} finding
+                {result.findings_count === 1 ? "" : "s"}
+              </strong>
+            </div>
+
+            {result.status === "completed" &&
+              result.findings.length === 0 && (
+                <div className="empty-results">
+                  No findings were reported by this analyzer. This does not
+                  guarantee that the code is bug-free or secure.
+                </div>
+              )}
+
+            {result.findings.map((finding, index) => (
+              <article
+                className="finding"
+                key={`${finding.rule_id}-${finding.line}-${index}`}
+              >
+                <div className="finding-heading">
+                  <strong>{finding.rule_id}</strong>
+                  <span className={`severity ${finding.severity}`}>
+                    {finding.severity}
+                  </span>
+                </div>
+                <p>{finding.message}</p>
+                <div className="finding-meta">
+                  <span>
+                    Line {finding.line}, column {finding.column}
+                  </span>
+                  <span>
+                    {finding.fix_available
+                      ? "Fix available from analyzer"
+                      : "No automatic fix reported"}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+      </section>
+
+      <section className="connection-card">
+        <div className="connection-heading">
+          <div>
+            <h2>Backend connection</h2>
+            <p>Check the availability of the API.</p>
+          </div>
+          <span className={`status-pill ${connection}`}>
+            {connection === "connected"
+              ? "Connected"
+              : connection === "checking"
+                ? "Checking..."
+                : connection === "error"
+                  ? "Connection failed"
+                  : "Not checked"}
+          </span>
+        </div>
+
+        <div className="connection-details">
+          <span className="api-address">{API_URL}/health</span>
+        </div>
+
+        <button
+          type="button"
+          className="connection-button"
+          onClick={checkConnection}
+          disabled={connection === "checking"}
+        >
+          Check connection
+        </button>
+      </section>
+
+      <footer className="footer">
+        CodeGuard AI · Static analysis, with clear limitations.
+      </footer>
+    </main>
+  );
+}
+
+export default App;
