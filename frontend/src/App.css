@@ -415,3 +415,32 @@ button {
     align-items: flex-start;
   }
 }
+
+.ai-review {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-review .results-heading {
+  margin-bottom: 16px;
+}
+
+.ai-suggestion {
+  margin-top: 14px;
+  border-left: 3px solid #7c83fd;
+}
+
+.ai-detail {
+  margin-top: 14px;
+}
+
+.ai-detail strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.ai-detail p {
+  margin: 0;
+  line-height: 1.6;
+}

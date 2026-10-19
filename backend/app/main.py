@@ -1,18 +1,32 @@
 
+import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.schemas import (
+    AIReview,
+    AISuggestion,
     AnalyzerInfo,
     ReviewRequest,
     ReviewResponse,
 )
+from app.services.ai_review import explain_code_findings
 from app.services.python_analyzer import analyze_python
+
+# Load backend/.env regardless of the terminal's working directory.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+logger = logging.getLogger(__name__)
+
+APP_VERSION = "0.3.0"
 
 app = FastAPI(
     title="CodeGuard AI API",
-    version="0.2.0",
+    version=APP_VERSION,
 )
 
 app.add_middleware(
@@ -48,7 +62,7 @@ async def enforce_request_size(request: Request, call_next):
 def root():
     return {
         "message": "Welcome to CodeGuard AI",
-        "version": "0.2.0",
+        "version": APP_VERSION,
     }
 
 
@@ -76,6 +90,13 @@ def review_code(payload: ReviewRequest):
             ),
             findings=[],
             findings_count=0,
+            ai_review=AIReview(
+                status="unavailable",
+                message=(
+                    "AI review is currently enabled only for Python "
+                    "in this milestone."
+                ),
+            ),
         )
 
     analyzer, findings = analyze_python(payload.code)
@@ -92,10 +113,46 @@ def review_code(payload: ReviewRequest):
         else "analyzer_unavailable"
     )
 
+    ai_review = None
+
+    # Request AI review only when Ruff analysis completed successfully.
+    if analyzer.status == "completed":
+        try:
+            ai_result = explain_code_findings(
+                code=payload.code,
+                language=payload.language,
+                findings=[finding.model_dump() for finding in findings],
+            )
+
+            ai_review = AIReview(
+                status="completed",
+                summary=ai_result["summary"],
+                suggestions=[
+                    AISuggestion(**suggestion)
+                    for suggestion in ai_result["suggestions"]
+                ],
+            )
+
+        except Exception as exc:
+            logger.warning(
+                "AI review failed: %s: %s",
+                type(exc).__name__,
+                exc,
+            )
+
+            ai_review = AIReview(
+                status="failed",
+                message=(
+                    "AI explanations could not be generated. "
+                    "Static-analysis findings are still available."
+                ),
+            )
+
     return ReviewResponse(
         language=payload.language,
         status=status,
         analyzer=analyzer,
         findings=findings,
         findings_count=len(findings),
+        ai_review=ai_review,
     )

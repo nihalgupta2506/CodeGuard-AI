@@ -36,9 +36,24 @@ class AnalyzerInfo(BaseModel):
     message: str
 
 
+class AISuggestion(BaseModel):
+    rule: str
+    explanation: str
+    why_it_matters: str
+    recommendation: str
+
+
+class AIReview(BaseModel):
+    status: Literal["completed", "failed", "unavailable"]
+    summary: str | None = None
+    suggestions: list[AISuggestion] = Field(default_factory=list)
+    message: str | None = None
+
+
 class ReviewResponse(BaseModel):
     language: Literal["python", "cpp"]
     status: Literal["completed", "analyzer_unavailable", "failed"]
     analyzer: AnalyzerInfo
     findings: list[Finding]
     findings_count: int
+    ai_review: AIReview | None = None

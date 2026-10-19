@@ -3,3 +3,5 @@ uvicorn[standard]
 ruff
 pytest
 httpx
+google-genai
+python-dotenv

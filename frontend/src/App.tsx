@@ -19,6 +19,20 @@ type Finding = {
   fix_available: boolean;
 };
 
+type AISuggestion = {
+  rule: string;
+  explanation: string;
+  why_it_matters: string;
+  recommendation: string;
+};
+
+type AIReview = {
+  status: "completed" | "failed" | "unavailable";
+  summary?: string | null;
+  suggestions: AISuggestion[];
+  message?: string | null;
+};
+
 type ReviewResult = {
   language: Language;
   status: "completed" | "analyzer_unavailable" | "failed";
@@ -29,6 +43,7 @@ type ReviewResult = {
   };
   findings: Finding[];
   findings_count: number;
+  ai_review?: AIReview | null;
 };
 
 function App() {
@@ -108,11 +123,11 @@ function App() {
       </header>
 
       <section className="hero">
-        <p className="eyebrow">STATIC ANALYSIS WORKSPACE</p>
+        <p className="eyebrow">AI-ASSISTED CODE REVIEW</p>
         <h1>Write better code.</h1>
         <p className="hero-description">
-          Find code-quality issues, inspect analyzer findings, and understand
-          where to improve your code.
+          Find code-quality issues, inspect verified analyzer findings,
+          and get AI-powered explanations and improvement suggestions.
         </p>
       </section>
 
@@ -120,7 +135,7 @@ function App() {
         <div className="workspace-header">
           <div>
             <h2>Code workspace</h2>
-            <p>Submit source code for static analysis.</p>
+            <p>Submit source code for static analysis and AI review.</p>
           </div>
 
           <label className="language-control">
@@ -173,7 +188,7 @@ function App() {
             onClick={reviewCode}
             disabled={loading || !code.trim() || code.length > 20_000}
           >
-            {loading ? "Analyzing..." : "Review code"}
+            {loading ? "Reviewing..." : "Review code"}
           </button>
         </div>
 
@@ -188,7 +203,7 @@ function App() {
           <section className="results" aria-live="polite">
             <div className="results-heading">
               <div>
-                <h2>Analysis results</h2>
+                <h2>Static analysis results</h2>
                 <p>Analyzer: {result.analyzer.name}</p>
               </div>
               <span
@@ -242,6 +257,76 @@ function App() {
                 </div>
               </article>
             ))}
+
+            {result.ai_review && (
+              <section className="ai-review">
+                <div className="results-heading">
+                  <div>
+                    <h2>AI code review</h2>
+                    <p>Explanations and recommendations from Gemini</p>
+                  </div>
+                  <span
+                    className={`status-pill ${
+                      result.ai_review.status === "completed"
+                        ? "connected"
+                        : result.ai_review.status === "failed"
+                          ? "error"
+                          : ""
+                    }`}
+                  >
+                    {result.ai_review.status === "completed"
+                      ? "Completed"
+                      : result.ai_review.status === "failed"
+                        ? "Unavailable"
+                        : "Not available"}
+                  </span>
+                </div>
+
+                {result.ai_review.summary && (
+                  <div className="message-panel">
+                    <strong>Summary</strong>
+                    <p>{result.ai_review.summary}</p>
+                  </div>
+                )}
+
+                {result.ai_review.message && (
+                  <div className="message-panel">
+                    <p>{result.ai_review.message}</p>
+                  </div>
+                )}
+
+                {result.ai_review.status === "completed" &&
+                  result.ai_review.suggestions.length === 0 && (
+                    <div className="empty-results">
+                      No AI suggestions were returned for this review.
+                    </div>
+                  )}
+
+                {result.ai_review.suggestions.map((suggestion, index) => (
+                  <article
+                    className="finding ai-suggestion"
+                    key={`${suggestion.rule}-${index}`}
+                  >
+                    <div className="finding-heading">
+                      <strong>{suggestion.rule || "General suggestion"}</strong>
+                      <span className="severity info">AI suggestion</span>
+                    </div>
+
+                    <p>{suggestion.explanation}</p>
+
+                    <div className="ai-detail">
+                      <strong>Why it matters</strong>
+                      <p>{suggestion.why_it_matters}</p>
+                    </div>
+
+                    <div className="ai-detail">
+                      <strong>Recommendation</strong>
+                      <p>{suggestion.recommendation}</p>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            )}
           </section>
         )}
       </section>
@@ -278,7 +363,7 @@ function App() {
       </section>
 
       <footer className="footer">
-        CodeGuard AI · Static analysis, with clear limitations.
+        CodeGuard AI · Static analysis and AI-assisted explanations.
       </footer>
     </main>
   );

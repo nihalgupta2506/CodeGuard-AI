@@ -2,22 +2,26 @@
 
 **An AI-powered code review assistant that helps developers identify code-quality issues and understand potential improvements.**
 
-CodeGuard AI is a developer-focused project that combines static analysis with planned AI-powered explanations and recommendations to make code reviews more accessible and actionable.
+CodeGuard AI combines Ruff static analysis with Gemini-powered explanations and recommendations to make code reviews more accessible and actionable.
 
 ## 🚀 Project Status
 
 - **Milestone 1:** Project setup and frontend-to-backend connectivity.
 - **Milestone 2:** Python static analysis using Ruff, with explicit handling for unsupported C++ analysis.
+- **Milestone 3:** AI-powered code review with Gemini integration.
 
 ## ✨ Features
 
-- Interactive code-review interface.
+- Interactive code-review interface with a dark-mode editor.
 - REST API built with FastAPI.
 - Python static analysis using Ruff.
+- AI-generated explanations and improvement suggestions powered by Gemini.
 - Structured findings with rule IDs, severity, messages, and source locations.
+- AI summary, explanation, impact, and recommendation for each finding.
 - Request validation for empty code, unsupported languages, unexpected fields, and oversized input.
 - Explicit response when C++ analysis is unavailable.
-- Submitted source code is not intentionally executed by the application.
+- Graceful degradation: AI failure never removes successful Ruff results.
+- Submitted source code is analyzed, not executed.
 
 ## 🛠️ Technology Stack
 
@@ -27,6 +31,7 @@ CodeGuard AI is a developer-focused project that combines static analysis with p
 | Backend | Python, FastAPI |
 | Validation | Pydantic |
 | Static Analysis | Ruff |
+| AI Integration | Google Gemini (google-genai SDK) |
 | Version Control | Git, GitHub |
 
 ## 📁 Project Structure
@@ -36,7 +41,8 @@ CodeGuard-AI/
 ├── backend/
 │   ├── app/
 │   │   ├── services/
-│   │   │   └── python_analyzer.py
+│   │   │   ├── python_analyzer.py
+│   │   │   └── ai_review.py
 │   │   ├── main.py
 │   │   └── schemas.py
 │   ├── tests/
@@ -58,6 +64,7 @@ CodeGuard-AI/
 - Python
 - Node.js and npm
 - Git
+- A Gemini API key (see [Google AI Studio](https://aistudio.google.com/apikey))
 
 ### 1. Clone the Repository
 
@@ -66,7 +73,16 @@ git clone https://github.com/nihalgupta2506/CodeGuard-AI.git
 cd CodeGuard-AI
 ```
 
-### 2. Start the Backend
+### 2. Configure Environment Variables
+
+```powershell
+cd backend
+copy .env.example .env
+```
+
+Edit `backend/.env` and set your `GEMINI_API_KEY` and `GEMINI_MODEL`.
+
+### 3. Start the Backend
 
 From the project root, run:
 
@@ -86,7 +102,7 @@ Health check: http://127.0.0.1:8000/health
 
 Keep the backend terminal running.
 
-### 3. Start the Frontend
+### 4. Start the Frontend
 
 Open a second terminal from the project root:
 
@@ -117,10 +133,10 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 
 | Language | Behavior |
 |---|---|
-| Python | Analyzed using Ruff |
+| Python | Analyzed using Ruff; AI explanations via Gemini |
 | C++ | Reports that the analyzer is unavailable |
 
-The API returns structured information about the analysis, including its status, analyzer details, findings, and finding count.
+The API returns structured information about the analysis, including its status, analyzer details, findings, finding count, and AI review with summary and per-finding suggestions.
 
 For complete request and response schemas, use the interactive API documentation at `/docs`.
 
@@ -136,22 +152,23 @@ This command runs the available automated tests. Confirm that the test suite exi
 
 ## 🔐 Security Considerations
 
-- Submitted source code is not intentionally executed.
+- Submitted source code is analyzed, not executed.
 - Ruff runs as a subprocess with a timeout.
 - Automatic code fixes are disabled during analysis.
 - Request validation restricts accepted languages and source-code size.
-- Secret keys and environment-specific credentials should never be committed to Git.
+- Secret keys and environment-specific credentials are never committed to Git.
+- The Gemini API key is loaded from `.env`, which is excluded via `.gitignore`.
 
 ## 🗺️ Roadmap
 
 - [x] Project setup and frontend-backend connectivity
 - [x] Python static analysis integration
 - [x] Explicit handling for unavailable C++ analysis
-- [ ] Expanded automated testing
-- [ ] AI-generated explanations and improvement suggestions
-- [ ] Review history
+- [x] AI-generated explanations and improvement suggestions
+- [ ] Expanded automated testing and reliability
 - [ ] C++ analyzer integration
-- [ ] Deployment
+- [ ] Review history and persistence
+- [ ] Deployment and portfolio release
 
 ## 🎯 Vision
 

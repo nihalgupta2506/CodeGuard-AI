@@ -4,7 +4,11 @@ __pycache__/
 backend/.venv/
 .venv/
 .pytest_cache/
+.ruff_cache/
 .coverage
+
+# Dev-only scripts
+backend/check_gemini.py
 
 # Environment variables and secrets
 .env
