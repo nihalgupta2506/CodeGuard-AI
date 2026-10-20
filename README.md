@@ -427,6 +427,7 @@ The project is built incrementally with an emphasis on:
 **Nihal Gupta**
 
 [![GitHub](https://img.shields.io/badge/GitHub-nihalgupta2506-181717?style=for-the-badge&logo=github)](https://github.com/nihalgupta2506)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Nihal_Gupta-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/nihal-gupta-g2506/)
 [![Project](https://img.shields.io/badge/Repo-CodeGuard_AI-blue?style=for-the-badge&logo=github)](https://github.com/nihalgupta2506/CodeGuard-AI)
 
 </div>
