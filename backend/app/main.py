@@ -1,9 +1,9 @@
 
 import logging
 from pathlib import Path
-
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.services.database import initialize_database
@@ -30,13 +30,17 @@ logger = logging.getLogger(__name__)
 
 APP_VERSION = "0.3.0"
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    initialize_database()
+    yield
+
+
 app = FastAPI(
     title="CodeGuard AI API",
     version=APP_VERSION,
+    lifespan=lifespan,
 )
-@app.on_event("startup")
-def startup_event():
-    initialize_database()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -143,9 +147,8 @@ def review_code(payload: ReviewRequest):
 
         except Exception as exc:
             logger.warning(
-                "AI review failed: %s: %s",
+                "AI review failed with exception type: %s",
                 type(exc).__name__,
-                exc,
             )
 
             ai_review = AIReview(
@@ -180,8 +183,11 @@ def review_code(payload: ReviewRequest):
                 else None
             ),
         )
-    except Exception:
-        logger.exception("Failed to save code review history.")
+    except Exception as exc:
+        logger.error(
+             "Failed to save code review history: %s",
+             type(exc).__name__,
+    )
 
     return response
 
@@ -189,8 +195,8 @@ def review_code(payload: ReviewRequest):
 @app.get("/reviews")
 def get_review_history(limit: int = 20):
     """List recent reviews without returning submitted source code."""
+    limit = max(1, min(limit, 100))
     return {"reviews": list_reviews(limit=limit)}
-
 
 @app.get("/reviews/{review_id}")
 def get_review_details(review_id: int):
