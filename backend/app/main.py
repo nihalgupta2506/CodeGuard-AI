@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from app.services.database import initialize_database
 
 from app.schemas import (
     AIReview,
@@ -13,6 +14,11 @@ from app.schemas import (
     AnalyzerInfo,
     ReviewRequest,
     ReviewResponse,
+)
+from app.services.review_history import (
+    get_review,
+    list_reviews,
+    save_review,
 )
 from app.services.ai_review import explain_code_findings
 from app.services.python_analyzer import analyze_python
@@ -28,7 +34,9 @@ app = FastAPI(
     title="CodeGuard AI API",
     version=APP_VERSION,
 )
-
+@app.on_event("startup")
+def startup_event():
+    initialize_database()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -148,7 +156,7 @@ def review_code(payload: ReviewRequest):
                 ),
             )
 
-    return ReviewResponse(
+    response = ReviewResponse(
         language=payload.language,
         status=status,
         analyzer=analyzer,
@@ -156,3 +164,43 @@ def review_code(payload: ReviewRequest):
         findings_count=len(findings),
         ai_review=ai_review,
     )
+
+    try:
+        save_review(
+            language=payload.language,
+            code=payload.code,
+            status=response.status,
+            findings=[
+                finding.model_dump()
+                for finding in response.findings
+            ],
+            ai_review=(
+                response.ai_review.model_dump()
+                if response.ai_review is not None
+                else None
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to save code review history.")
+
+    return response
+
+
+@app.get("/reviews")
+def get_review_history(limit: int = 20):
+    """List recent reviews without returning submitted source code."""
+    return {"reviews": list_reviews(limit=limit)}
+
+
+@app.get("/reviews/{review_id}")
+def get_review_details(review_id: int):
+    """Retrieve a saved review by its ID."""
+    review = get_review(review_id)
+
+    if review is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Review not found.",
+        )
+
+    return review

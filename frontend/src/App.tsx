@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:8000";
@@ -45,8 +45,28 @@ type ReviewResult = {
   findings_count: number;
   ai_review?: AIReview | null;
 };
+type ReviewHistoryItem = {
+  id: number;
+  language: Language;
+  status: string;
+  created_at: string;
+};
+
+type SavedReview = {
+  id: number;
+  language: Language;
+  code: string;
+  status: string;
+  created_at: string;
+  findings: Finding[];
+  ai_review: AIReview | null;
+};
 
 function App() {
+  const [history, setHistory] = useState<ReviewHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [selectedReviewId, setSelectedReviewId] = useState<number | null>(null);
   const [language, setLanguage] = useState<Language>("python");
   const [code, setCode] = useState('import os\n\nx = 1\nprint(x)\n');
   const [loading, setLoading] = useState(false);
@@ -55,7 +75,68 @@ function App() {
   const [connection, setConnection] = useState<
     "idle" | "checking" | "connected" | "error"
   >("idle");
+async function loadHistory() {
+  setHistoryLoading(true);
+  setHistoryError("");
 
+  try {
+    const response = await fetch(`${API_URL}/reviews?limit=20`);
+
+    if (!response.ok) {
+      throw new Error(`Unable to load history: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    setHistory(data.reviews as ReviewHistoryItem[]);
+  } catch (err) {
+    setHistoryError(
+      err instanceof Error ? err.message : "Unable to load review history."
+    );
+  } finally {
+    setHistoryLoading(false);
+  }
+}
+
+async function openSavedReview(reviewId: number) {
+  setHistoryError("");
+
+  try {
+    const response = await fetch(`${API_URL}/reviews/${reviewId}`);
+
+    if (!response.ok) {
+      throw new Error(`Unable to open review: HTTP ${response.status}`);
+    }
+
+    const saved = (await response.json()) as SavedReview;
+
+    setLanguage(saved.language);
+    setCode(saved.code);
+    setSelectedReviewId(saved.id);
+
+    setResult({
+      language: saved.language,
+      status: saved.status as ReviewResult["status"],
+      analyzer: {
+        name: saved.language === "python" ? "ruff" : "clang-tidy",
+        status: saved.status === "completed" ? "completed" : "unavailable",
+        message: "Loaded from saved review history.",
+      },
+      findings: saved.findings,
+      findings_count: saved.findings.length,
+      ai_review: saved.ai_review,
+    });
+
+    setError("");
+  } catch (err) {
+    setHistoryError(
+      err instanceof Error ? err.message : "Unable to open saved review."
+    );
+  }
+}
+
+useEffect(() => {
+  void loadHistory();
+}, []);
   async function checkConnection() {
     setConnection("checking");
 
@@ -101,6 +182,8 @@ function App() {
       }
 
       setResult(data as ReviewResult);
+setSelectedReviewId(null);
+void loadHistory();
     } catch (err) {
       setError(
         err instanceof Error
@@ -143,6 +226,7 @@ function App() {
             <select
               value={language}
               onChange={(event) => {
+                setSelectedReviewId(null);
                 setLanguage(event.target.value as Language);
                 setResult(null);
                 setError("");
@@ -169,6 +253,7 @@ function App() {
             spellCheck={false}
             value={code}
             onChange={(event) => {
+              setSelectedReviewId(null);
               setCode(event.target.value);
               setResult(null);
             }}
@@ -329,6 +414,58 @@ function App() {
             )}
           </section>
         )}
+      </section>
+            <section className="history-card">
+        <div className="history-heading">
+          <div>
+            <h2>Review history</h2>
+            <p>Your 20 most recent saved code reviews.</p>
+          </div>
+
+          <button
+            type="button"
+            className="history-refresh"
+            onClick={() => void loadHistory()}
+            disabled={historyLoading}
+          >
+            {historyLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        {historyError && (
+          <div className="message-panel error-panel" role="alert">
+            <p>{historyError}</p>
+          </div>
+        )}
+
+        {!historyLoading && history.length === 0 && !historyError && (
+          <div className="empty-results">
+            No saved reviews yet. Submit code to create your first history item.
+          </div>
+        )}
+
+        <div className="history-list">
+          {history.map((item) => (
+            <article className="history-item" key={item.id}>
+              <div className="history-item-details">
+                <strong>Review #{item.id}</strong>
+                <span>{item.language.toUpperCase()}</span>
+                <span>{item.status.replaceAll("_", " ")}</span>
+                <time dateTime={item.created_at}>
+                  {new Date(`${item.created_at.replace(" ", "T")}Z`).toLocaleString()}
+                </time>
+              </div>
+
+              <button
+                type="button"
+                className="history-open"
+                onClick={() => void openSavedReview(item.id)}
+              >
+                {selectedReviewId === item.id ? "Opened" : "Open review"}
+              </button>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="connection-card">

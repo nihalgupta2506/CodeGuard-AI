@@ -25,3 +25,5 @@ frontend/.vite/
 .idea/
 .DS_Store
 Thumbs.db
+
+backend/codeguard.db
