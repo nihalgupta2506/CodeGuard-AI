@@ -416,15 +416,6 @@ npm run lint
 - [ ] Add code syntax highlighting in the editor
 - [ ] Support additional languages (JavaScript, Go, Rust)
 
-### 📊 Estimated Effort
-
-| Item | Estimate |
-|------|----------|
-| Remaining milestones | 4 |
-| Estimated time | 1–2 weeks |
-| Daily commitment | 2–3 hours |
-| Final goal | Deployed, documented portfolio project |
-
 ---
 
 ## 🎯 Vision
