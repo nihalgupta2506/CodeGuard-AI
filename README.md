@@ -31,11 +31,14 @@ CodeGuard AI combines **Ruff static analysis** with **Google Gemini AI explanati
 | 2 | **Static Analysis** — Python analysis via Ruff, explicit C++ unavailability handling | ✅ Done |
 | 3 | **AI Integration** — Gemini-powered explanations, structured JSON responses, retry logic | ✅ Done |
 | 4 | **Review History** — SQLite persistence, history API endpoints, frontend history UI | ✅ Done |
-| 5 | **Reliability & Testing** — Automated tests, request validation, error handling, logging | ✅ Done |
-| 6 | **C++ Analysis** — Integrate `clang-tidy` for C++ static analysis | 🔲 Planned |
-| 7 | **Deployment** — Production deployment of backend & frontend | 🔲 Planned |
+| 5 | **C++ Analyzer** — Integrated `clang-tidy` for C++ static analysis | ✅ Done |
+| 6 | **Expanded Testing** — Automated backend tests, request validation, error handling, logging | ✅ Done |
+| 7 | **Reliability & Security** — Error handling hardening, input validation, analyzer safety, expanded tests | 🔜 Next |
+| 8 | **Frontend Polish** — Improved review interface, loading states, findings display, error UX, history | 🔲 Planned |
+| 9 | **CI/CD & Documentation** — GitHub Actions, automated test pipeline, setup docs, architecture docs | 🔲 Planned |
+| 10 | **Deployment & Portfolio** — Production deployment, env config, verification, portfolio demo | 🔲 Planned |
 
-> **Current Progress:** Milestones 1–5 are complete. The core pipeline — Python static analysis → AI-generated explanations → persistent review history — is fully functional with automated test coverage. C++ analyzer integration and production deployment are next.
+> **Current Progress:** Milestones 1–6 are complete. The full pipeline — Python & C++ static analysis → AI-generated explanations → persistent review history — is functional with automated test coverage. Reliability hardening (Milestone 7) is up next, followed by frontend polish, CI/CD, and deployment.
 
 ---
 
@@ -385,9 +388,10 @@ npm run lint
 
 ## 🗺️ Roadmap
 
+### ✅ Completed (Milestones 1–6)
 - [x] Project setup and frontend–backend connectivity
 - [x] Python static analysis using Ruff
-- [x] Explicit handling for unavailable C++ analysis
+- [x] C++ static analysis using `clang-tidy`
 - [x] Gemini-powered explanations and recommendations
 - [x] Structured JSON schema enforcement for AI responses
 - [x] Retry logic with exponential backoff for transient AI failures
@@ -398,12 +402,28 @@ npm run lint
 - [x] CORS configuration
 - [x] Automated backend tests (14 tests across 2 modules)
 - [x] Database isolation in tests using `tmp_path`
-- [ ] Integrate `clang-tidy` for C++ static analysis
-- [ ] Add C++ analysis tests
-- [ ] Deploy backend and frontend to production
-- [ ] Publish a live portfolio demonstration
+
+### 🔜 Up Next (Milestone 7 — Reliability & Security)
+- [ ] Harden error handling across all endpoints
+- [ ] Strengthen input validation edge cases
+- [ ] Improve analyzer subprocess safety
+- [ ] Expand test coverage with additional edge-case tests
+
+### 🔲 Planned
+- [ ] **Milestone 8** — Frontend polish: loading states, findings display, error messages, history UX
+- [ ] **Milestone 9** — CI/CD: GitHub Actions pipeline, automated tests on push, architecture docs
+- [ ] **Milestone 10** — Deployment: production deploy, env configuration, verification, portfolio demo
 - [ ] Add code syntax highlighting in the editor
 - [ ] Support additional languages (JavaScript, Go, Rust)
+
+### 📊 Estimated Effort
+
+| Item | Estimate |
+|------|----------|
+| Remaining milestones | 4 |
+| Estimated time | 1–2 weeks |
+| Daily commitment | 2–3 hours |
+| Final goal | Deployed, documented portfolio project |
 
 ---
 
