@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.services.database import initialize_database
+from app.services.cpp_analyzer import analyze_cpp
 
 from app.schemas import (
     AIReview,
@@ -86,32 +87,14 @@ def health_check():
     }
 
 
+
 @app.post("/review", response_model=ReviewResponse)
 def review_code(payload: ReviewRequest):
-    if payload.language == "cpp":
-        return ReviewResponse(
-            language="cpp",
-            status="analyzer_unavailable",
-            analyzer=AnalyzerInfo(
-                name="clang-tidy",
-                status="unavailable",
-                message=(
-                    "C++ static analysis is not configured yet. "
-                    "No C++ findings were generated."
-                ),
-            ),
-            findings=[],
-            findings_count=0,
-            ai_review=AIReview(
-                status="unavailable",
-                message=(
-                    "AI review is currently enabled only for Python "
-                    "in this milestone."
-                ),
-            ),
-        )
-
-    analyzer, findings = analyze_python(payload.code)
+    # Run the analyzer that matches the requested language.
+    if payload.language == "python":
+        analyzer, findings = analyze_python(payload.code)
+    else:
+        analyzer, findings = analyze_cpp(payload.code)
 
     if analyzer.status == "failed":
         raise HTTPException(
@@ -127,13 +110,15 @@ def review_code(payload: ReviewRequest):
 
     ai_review = None
 
-    # Request AI review only when Ruff analysis completed successfully.
     if analyzer.status == "completed":
         try:
             ai_result = explain_code_findings(
                 code=payload.code,
                 language=payload.language,
-                findings=[finding.model_dump() for finding in findings],
+                findings=[
+                    finding.model_dump()
+                    for finding in findings
+                ],
             )
 
             ai_review = AIReview(
@@ -150,7 +135,6 @@ def review_code(payload: ReviewRequest):
                 "AI review failed with exception type: %s",
                 type(exc).__name__,
             )
-
             ai_review = AIReview(
                 status="failed",
                 message=(
@@ -158,6 +142,13 @@ def review_code(payload: ReviewRequest):
                     "Static-analysis findings are still available."
                 ),
             )
+    else:
+        ai_review = AIReview(
+            status="unavailable",
+            message=(
+                "AI review requires successful static analysis."
+            ),
+        )
 
     response = ReviewResponse(
         language=payload.language,
@@ -175,7 +166,7 @@ def review_code(payload: ReviewRequest):
             status=response.status,
             findings=[
                 finding.model_dump()
-                for finding in response.findings
+                for finding in findings
             ],
             ai_review=(
                 response.ai_review.model_dump()
@@ -185,11 +176,12 @@ def review_code(payload: ReviewRequest):
         )
     except Exception as exc:
         logger.error(
-             "Failed to save code review history: %s",
-             type(exc).__name__,
-    )
+            "Failed to save review history: %s",
+            type(exc).__name__,
+        )
 
     return response
+
 
 
 @app.get("/reviews")

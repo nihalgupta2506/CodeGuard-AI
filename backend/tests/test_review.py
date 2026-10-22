@@ -55,7 +55,8 @@ def test_clean_python_code():
     assert data["findings_count"] == 0
 
 
-def test_cpp_analyzer_is_reported_unavailable():
+
+def test_cpp_analyzer_returns_structured_response():
     response = client.post(
         "/review",
         json={
@@ -68,9 +69,12 @@ def test_cpp_analyzer_is_reported_unavailable():
 
     data = response.json()
 
-    assert data["status"] == "analyzer_unavailable"
-    assert data["analyzer"]["status"] == "unavailable"
-    assert data["findings"] == []
+    assert data["language"] == "cpp"
+    assert data["status"] == "completed"
+    assert data["analyzer"]["name"] == "clang-tidy"
+    assert data["analyzer"]["status"] == "completed"
+    assert isinstance(data["findings"], list)
+    assert data["findings_count"] == len(data["findings"])
 
 
 def test_empty_code_is_rejected():
