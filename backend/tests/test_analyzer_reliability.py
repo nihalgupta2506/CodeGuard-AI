@@ -183,3 +183,54 @@ def test_temporary_source_file_is_removed_after_timeout(
     assert findings == []
     assert len(created_paths) == 1
     assert not created_paths[0].exists()
+
+def test_cpp_analyzer_handles_nonzero_exit_without_diagnostics(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        cpp_analyzer.Path,
+        "is_file",
+        lambda self: True,
+    )
+
+    class FakeResult:
+        returncode = 1
+        stdout = ""
+        stderr = "clang-tidy failed"
+
+    monkeypatch.setattr(
+        cpp_analyzer.subprocess,
+        "run",
+        lambda *args, **kwargs: FakeResult(),
+    )
+
+    analyzer, findings = cpp_analyzer.analyze_cpp(
+        "int main() { return 0; }"
+    )
+
+    assert analyzer.status == "failed"
+    assert findings == []
+
+
+def test_cpp_analyzer_handles_os_error(monkeypatch):
+    monkeypatch.setattr(
+        cpp_analyzer.Path,
+        "is_file",
+        lambda self: True,
+    )
+
+    def fake_run(*args, **kwargs):
+        raise OSError("Simulated operating-system error")
+
+    monkeypatch.setattr(
+        cpp_analyzer.subprocess,
+        "run",
+        fake_run,
+    )
+
+    analyzer, findings = cpp_analyzer.analyze_cpp(
+        "int main() { return 0; }"
+    )
+
+    assert analyzer.status == "unavailable"
+    assert findings == []
