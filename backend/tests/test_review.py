@@ -118,3 +118,77 @@ def test_oversized_code_is_rejected():
     )
 
     assert response.status_code == 422
+
+def test_whitespace_only_code_is_rejected():
+    response = client.post(
+        "/review",
+        json={
+            "language": "python",
+            "code": "   \n\t   ",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_code_at_maximum_length_is_accepted_by_validation():
+    from app.schemas import ReviewRequest
+
+    payload = ReviewRequest(
+        language="python",
+        code=" " + ("x" * 19_999),
+    )
+
+    assert len(payload.code) == 20_000
+
+
+def test_invalid_language_case_is_rejected():
+    response = client.post(
+        "/review",
+        json={
+            "language": "Python",
+            "code": "print('hello')",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_null_code_is_rejected():
+    response = client.post(
+        "/review",
+        json={
+            "language": "python",
+            "code": None,
+        },
+    )
+
+    assert response.status_code == 422
+
+def test_request_with_oversized_content_length_is_rejected():
+    response = client.post(
+        "/review",
+        content=b'{"language":"python","code":"print(1)"}',
+        headers={"Content-Length": "25001"},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Request body is too large."
+
+
+def test_request_with_invalid_content_length_is_rejected():
+    response = client.post(
+        "/review",
+        content=b'{"language":"python","code":"print(1)"}',
+        headers={"Content-Length": "invalid"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid Content-Length header."
+
+
+def test_request_with_small_content_length_is_not_rejected_by_size_middleware():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
