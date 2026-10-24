@@ -192,3 +192,110 @@ def test_request_with_small_content_length_is_not_rejected_by_size_middleware():
 
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
+
+def test_ai_failure_preserves_static_findings(monkeypatch):
+    from app import main
+
+    def fake_ai_review(**kwargs):
+        raise RuntimeError("Sensitive internal error")
+
+    monkeypatch.setattr(
+        main,
+        "explain_code_findings",
+        fake_ai_review,
+    )
+
+    response = client.post(
+        "/review",
+        json={
+            "language": "python",
+            "code": "import os\nprint('hello')\n",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "completed"
+    assert any(
+        finding["rule_id"] == "F401"
+        for finding in data["findings"]
+    )
+    assert data["ai_review"]["status"] == "failed"
+    assert "Sensitive internal error" not in response.text
+
+
+def test_malformed_ai_result_preserves_static_findings(
+    monkeypatch,
+):
+    from app import main
+
+    def fake_ai_review(**kwargs):
+        return {"unexpected": "response"}
+
+    monkeypatch.setattr(
+        main,
+        "explain_code_findings",
+        fake_ai_review,
+    )
+
+    response = client.post(
+        "/review",
+        json={
+            "language": "python",
+            "code": "import os\nprint('hello')\n",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "completed"
+    assert data["findings_count"] == len(data["findings"])
+    assert any(
+        finding["rule_id"] == "F401"
+        for finding in data["findings"]
+    )
+    assert data["ai_review"]["status"] == "failed"
+
+def test_database_save_failure_does_not_break_review(monkeypatch):
+    from app import main
+
+    def fake_save_review(**kwargs):
+        raise RuntimeError("Sensitive database error")
+
+    monkeypatch.setattr(
+        main,
+        "save_review",
+        fake_save_review,
+    )
+
+    response = client.post(
+        "/review",
+        json={
+            "language": "python",
+            "code": "import os\nprint('hello')\n",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "completed"
+    assert data["findings_count"] == len(data["findings"])
+    assert "Sensitive database error" not in response.text
+
+def test_review_history_list_does_not_expose_source_code():
+    response = client.get("/reviews")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "reviews" in data
+
+    for review in data["reviews"]:
+        assert "code" not in review
